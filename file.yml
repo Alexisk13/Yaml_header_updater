@@ -1,0 +1,36 @@
+name: Update SQL Headers
+
+on:
+  push:
+    branches:
+      - main  # Change this to your branch if needed
+
+jobs:
+  update-headers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+      - name: Update SQL file headers
+        run: |
+          HEADER="-- Version\n-- $LastChangedRevision: 2 $;\n--\n-- Date\n-- $LastChangedDate: $(date +'%d/%m/%y') $;\n--\n-- Author\n-- $LastChangedBy: author $;\n--"
+          
+          for file in $(git ls-files '*.sql'); do
+            if grep -q "\$LastChangedRevision:" "$file"; then
+              sed -i '1,/^--$/d' "$file"  # Remove existing headers
+              echo -e "$HEADER\n$(cat "$file")" > "$file"
+            fi
+          done
+      
+      - name: Commit changes
+        run: |
+          git add .
+          git diff --staged --quiet || git commit -m "Updated SQL file headers"
+          git push
