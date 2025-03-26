@@ -13,7 +13,17 @@ update_headers:
         if grep -q "\$LastChangedRevision:" "$file"; then
           VERSION=$(grep "\$LastChangedRevision:" "$file" | awk '{print $3}')
           NEW_VERSION=$((VERSION + 1))
-          HEADER="-- Version\n-- \$LastChangedRevision: $NEW_VERSION \$;\n--\n-- Date\n-- \$LastChangedDate: $(date +'%d/%m/%y') \$;\n--\n-- Author\n-- \$LastChangedBy: author \$;\n--"
+          HEADER: |
+  ------------------------
+  -- Version
+  --     $LastChangedRevision: 4 $;
+  --
+  -- Date
+  --     $LastChangedDate: $(date +"%Y-%m-%d %H:%M:%S %z (%a, %d %b %Y)") $;
+  --
+  -- Author
+  --     $LastChangedBy: 777 $;
+  ------------------------
           sed -i '1,/^--$/d' "$file"  # Remove existing headers
           echo -e "$HEADER\n$(cat "$file")" > "$file"
         fi
