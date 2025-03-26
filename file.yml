@@ -11,21 +11,18 @@ update_headers:
   script:
     - for file in $(git ls-files '*.sql'); do
         if grep -q "\$LastChangedRevision:" "$file"; then
-          VERSION=$(grep "\$LastChangedRevision:" "$file" | awk '{print $3}')
-          NEW_VERSION=$((VERSION + 1))
-          HEADER: |
-  ------------------------
-  -- Version
-  --     $LastChangedRevision: 4 $;
-  --
-  -- Date
-  --     $LastChangedDate: $(date +"%Y-%m-%d %H:%M:%S %z (%a, %d %b %Y)") $;
-  --
-  -- Author
-  --     $LastChangedBy: 777 $;
-  ------------------------
-          sed -i '1,/^--$/d' "$file"  # Remove existing headers
-          echo -e "$HEADER\n$(cat "$file")" > "$file"
+    # Extract and increment version
+    VERSION=$(grep "\$LastChangedRevision:" "$file" | awk '{print $3}')
+    NEW_VERSION=$((VERSION + 1))
+
+    # Define new header
+    HEADER="-- Version\n-- \$LastChangedRevision: $NEW_VERSION \$;\n--\n-- Date\n-- \$LastChangedDate: $(date +'%d/%m/%y') \$;\n--\n-- Author\n-- \$LastChangedBy: 777 \$;\n--"
+
+    # Remove all existing headers
+    sed -i '/^\-- Version/,/^\--$/d' "$file"
+
+    # Insert new header at the beginning
+    echo -e "$HEADER\n$(cat "$file")" > temp.sql && mv temp.sql "$file"
         fi
       done
     - git add .
