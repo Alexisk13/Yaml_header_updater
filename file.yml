@@ -1,30 +1,28 @@
-stages:
-  - update_headers
+for file in $files
+      do 
+        echo "  checking file " $file
 
-update_headers:
-  stage: update_headers
-  image: ubuntu:latest
-  before_script:
-    - apt-get update && apt-get install -y git
-    - git config --global user.name "gitlab-ci"
-    - git config --global user.email "gitlab-ci@gitlab.com"
-  script:
-    - for file in $(git ls-files '*.sql'); do
         if grep -q "\$LastChangedRevision:" "$file"; then
-    # Extract and increment version
-    VERSION=$(grep "\$LastChangedRevision:" "$file" | awk '{print $3}')
-    NEW_VERSION=$((VERSION + 1))
+          VERSION=$(grep "\$LastChangedRevision:" "$file" | awk '{print $3}')
+          NEW_VERSION=$((VERSION + 1))
 
-    # Define new header
-    HEADER="-- Version\n-- \$LastChangedRevision: $NEW_VERSION \$;\n--\n-- Date\n-- \$LastChangedDate: $(date +'%d/%m/%y') \$;\n--\n-- Author\n-- \$LastChangedBy: 777 \$;\n--"
+          HEADER: |
+            -----------------------------------------------------------------------------
+            -- Version
+            --   $LastChangedRevision: $NEW_VERSION $;
+            --
+            -- Date
+            --   $LastChangedDate: $(date +"%Y-%m-%d %H:%M:%S %z (%a, %d %b %Y)") $;
+            --
+            -- Author
+            --   $LastChangedBy: $author $;
+            --
+            -----------------------------------------------------------------------------
 
-    # Remove all existing headers
-    sed -i '/^\-- Version/,/^\--$/d' "$file"
-
-    # Insert new header at the beginning
-    echo -e "$HEADER\n$(cat "$file")" > temp.sql && mv temp.sql "$file"
+          sed -i '/^\-- Version/,/^\--$/d' "$file"
+          echo -e "$HEADER\n$(cat "$file")" > temp.sql && mv temp.sql "$file"
+          # echo $HEADER  # Header check
         fi
+
+         
       done
-    - git add .
-    - git diff --staged --quiet || git commit -m "Updated SQL file headers with version increment"
-    - git push
