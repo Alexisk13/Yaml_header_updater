@@ -19,7 +19,7 @@ for file in $files
             --
             -----------------------------------------------------------------------------
 
-          sed -i '/^\-- Version/,/^\--$/d' "$file"
+          sed -i '/^-\{5,\}/,/^-\{5,\}/d' "$file"
           echo -e "$HEADER\n$(cat "$file")" > temp.sql && mv temp.sql "$file"
           # echo $HEADER  # Header check
         fi
