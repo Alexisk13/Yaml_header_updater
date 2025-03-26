@@ -59,21 +59,14 @@ build-job:       # This job runs in the build stage, which runs first.
       echo "10 step"
       for file in $files
       do 
-        echo "Checking file: $file"
+        echo "  checking file " $file
 
         if grep -q "\$LastChangedRevision:" "$file"; then
           if grep -qE '^-{77,}' "$file"; then
-            echo "File contains the header, processing..."
-
             VERSION=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
-
-            if [ -z "$VERSION" ]; then
-              echo "No version found in the header, skipping file."
-              continue
-            fi
-
             NEW_VERSION=$((VERSION + 1))
-            echo "Incrementing version: $VERSION -> $NEW_VERSION"
+
+            echo $VERSION
 
             HEADER="-----------------------------------------------------------------------------
       -- Version
@@ -85,18 +78,37 @@ build-job:       # This job runs in the build stage, which runs first.
       -- Author
       --   \$LastChangedBy: $author \$;
       --
-      -----------------------------------------------------------------------------"
-            echo $HEADER
-            sed -i '/^-\{77,\}/,/^-\{77,\}/d' "$file"  # Remove old header
-            echo -e "$HEADER\n$(cat "$file")" > temp.sql && mv temp.sql "$file"  # Insert new header
-
-            # Stage the file for commit
-            git add "$file"
-            echo "Added file: $file"
+      -----------------------------------------------------------------------------"          
+            
+            sed -i '/^-\{77,\}/,/^-\{77,\}/d' "$file"
+            echo -e "$HEADER\n$(cat "$file")" > temp.sql && mv temp.sql "$file"
+            git add $file
+            echo "file added" $file
           else
-            echo "Skipping file $file (missing separator)"
-          fi
+            echo "  Skipping $file (missing upper separator)"
+            # echo $HEADER  # Header check
+          fi 
         fi
+
+          
+          # check_encoding "$file"
+      
+          # x=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
+          # value_count=$(echo "$x" | wc -w)
+
+          # if [ $value_count -ge 2 ]; then
+          #   sed '12,22d' $file
+          #   x=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
+          # fi
+          
+        #   echo $x
+
+        #   version=$(($x+1))
+        # updateVersionReplaceStr="\\\$LastChangedRevision: ${version} \\$"
+        #   echo $updateVersionReplaceStr
+        #   echo "11 step"
+        #   sed -ri "s/$updateDateFindStr/$updateDateReplaceStr/gi; s/$updateAuthorFindStr/$updateAuthorReplaceStr/gi; s/$updateVersionFindStr/$updateVersionReplaceStr/gi;" $file
+
       done
 
       # for file in $ofiles 
@@ -121,3 +133,18 @@ build-job:       # This job runs in the build stage, which runs first.
       echo "--end--"
       # If no issues found, allow the commit
       # exit 0
+
+
+Previous HEAD position was dbeb518 Edit .gitlab-ci.yml
+Switched to branch 'Test'
+Your branch and 'origin/Test' have diverged,
+and have 17 and 6 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+fatal: It seems that there is already a rebase-merge directory, and
+I wonder if you are in the middle of another rebase.  If that is the
+case, please try
+	git rebase (--continue | --abort | --skip)
+If that is not the case, please
+	rm -fr ".git/rebase-merge"
+and run me again.  I am stopping in case you still have something
+valuable there.
