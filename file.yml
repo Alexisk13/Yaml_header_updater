@@ -62,7 +62,7 @@ build-job:       # This job runs in the build stage, which runs first.
         echo "  checking file " $file
 
         if grep -q "\$LastChangedRevision:" "$file"; then
-          if grep -qE '^-{77,}' "$file"; then
+          if grep -qE '^-{77,}' "$file" && tail -n 1 "$file" | grep -qE '^-{77,}'; then
             VERSION=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
             NEW_VERSION=$((VERSION + 1))
 
