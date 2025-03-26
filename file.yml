@@ -66,7 +66,7 @@ build-job:       # This job runs in the build stage, which runs first.
 
             echo "777 ss"
 
-            VERSION=$(grep '\$LastChangedRevision:' "$file" | awk -F': ' '{print $2}' | awk '{print $1}')
+            VERSION=$(grep '\$LastChangedRevision:' "$file" | sed -n 's/.*\$LastChangedRevision: *\([0-9]\+\).*/\1/p')
             # NEW_VERSION=$((VERSION + 1))
 
             echo $VERSION
