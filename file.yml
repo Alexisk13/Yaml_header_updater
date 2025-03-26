@@ -16,9 +16,11 @@ build-job:       # This job runs in the build stage, which runs first.
     - git config --global user.email "aleksis.kahanovskis@codex.lv"
     - |   
       echo "1 step"
+      git fetch --all --prune
       git checkout Test
+      git reset --hard origin/Test
       git pull --rebase
-      git pull origin Test
+      
       # echo "Current branch:"
       # git branch
       # echo "Git status:"
@@ -84,10 +86,14 @@ build-job:       # This job runs in the build stage, which runs first.
             echo -e "$HEADER\n$(cat "$file")" > temp.sql && mv temp.sql "$file"
             git add $file
             echo "file added" $file
+            git commit -m "Version: $NEW_VERSION " ./
+            echo "file commited" $file
           else
-            echo "  Skipping $file (missing upper separator)"
+            echo "  Skipping $file (missing separators)"
             # echo $HEADER  # Header check
           fi 
+        else
+          echo "skipping $file (missing version)"  
         fi
 
           
@@ -126,25 +132,8 @@ build-job:       # This job runs in the build stage, which runs first.
 
       IFS=" "
       # git add *
-      # git commit -m "Version: $NEW_VERSION " ./
+      
        # PUSH TO TEST BRANCH
       # git push origin Test
 
       echo "--end--"
-      # If no issues found, allow the commit
-      # exit 0
-
-
-Previous HEAD position was dbeb518 Edit .gitlab-ci.yml
-Switched to branch 'Test'
-Your branch and 'origin/Test' have diverged,
-and have 17 and 6 different commits each, respectively.
-  (use "git pull" if you want to integrate the remote branch with yours)
-fatal: It seems that there is already a rebase-merge directory, and
-I wonder if you are in the middle of another rebase.  If that is the
-case, please try
-	git rebase (--continue | --abort | --skip)
-If that is not the case, please
-	rm -fr ".git/rebase-merge"
-and run me again.  I am stopping in case you still have something
-valuable there.
