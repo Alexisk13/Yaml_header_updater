@@ -4,7 +4,7 @@ for file in $files; do
   if grep -q "\$LastChangedRevision:" "$file"; then
     # Check if the file has the upper separator
     if grep -qE '^-{5,}' "$file"; then 
-      VERSION=$(grep "\$LastChangedRevision:" "$file" | awk '{print $3}')
+      VERSION=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
       NEW_VERSION=$((VERSION + 1))
 
       read -r -d '' HEADER <<EOF
