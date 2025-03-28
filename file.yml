@@ -1,7 +1,7 @@
 stages:          # List of stages for jobs, and their order of execution
   - build
 
-build-job:       # This job runs in the build stage, which runs first.
+build-job:       
   stage: build
   environment: build
   tags:
@@ -12,63 +12,67 @@ build-job:       # This job runs in the build stage, which runs first.
     - echo "Compile complete."
     - apt update -y
     - apt install git curl -y
-    - git config --global user.name "Aleksis"
-    - git config --global user.email "aleksis.kahanovskis@codex.lv"
+    - apt update -y
+    - apt install file locales -y
+    - locale-gen lv_LV.UTF-8
+    - update-locale LANG=lv_LV.UTF-8
+    - export LANG=lv_LV.UTF-8
+    - export LC_ALL=lv_LV.UTF-8
+    - locale
+    - echo "✓ Latviešu UTF-8 locale strādā pareizi!"
+    - echo "Fetching the latest commits..."
     - |   
-      echo "1 step"
+      
       git fetch --all --prune
       git checkout Test
       git reset --hard origin/Test
-      git pull --rebase
-      
-      # echo "Current branch:"
-      # git branch
-      # echo "Git status:"
-      # git status
-
-      # echo "Contents of DAP directory:"
-      # ls -l DAP/
-
+      echo "Checking for committed files..."
       IFS=$'\n'
+      
+      files=$(git diff-tree --no-commit-id --name-only -r HEAD | grep '\.sql$' || true)
 
-      # Use git ls-tree to detect all SQL files in DAP
-      files=$(git ls-tree -r HEAD --name-only | grep "^DAP/.*\.sql")
-      # echo "Detected SQL files in Git:"
-      # echo "$files"
-      # if [ -z "$files" ]; then
-      #   echo "No files in DAP";
-      # else
-      #   echo "$files";
-      # fi
-        
-      # ofiles=$(git ls-tree -r HEAD --name-only | grep "^DAP/.*\.sql")
-      # echo "3 step"
-      # date=$(date +"%d.%m.%Y %T")
-      # echo "4 step"
-      author="777"
-      # echo "5 step"
-      # updateDateFindStr="\\\$LastChangedDate[^\\$]*\\$"
-      # echo "6 step"
-      # updateDateReplaceStr="\\\$LastChangedDate: ${date} \\$"
-      # echo "7 step"
-      # updateAuthorFindStr="\\\$LastChangedBy[^\\$]*\\$"
-      # updateAuthorReplaceStr="\\\$LastChangedBy: ${author} \\$"
-      # echo "8 step"
-      # updateVersionFindStr="\\\$LastChangedRevision:[^\\$]*\\$"
-      # echo "9 step"
-      # CR=$(printf '\r')
-      #version=$(git rev-parse --short HEAD)
+      if [[ -z "$files" ]]; then
+        echo "No SQL files were committed. Exiting."
+        exit 0
+      fi
+
+      # Debugging log
+      echo "Files to process: $files"
+      
       echo "10 step"
+
       for file in $files
       do 
-        echo "  checking file " $file
+        echo "Checking file: $file"
+        
+        committer_name=$(git log -1 --pretty=format:'%an' -- "$file")
+        committer_email=$(git log -1 --pretty=format:'%ae' -- "$file")
+        if [[ -n "$committer_name" && -n "$committer_email" ]]; then
+          git config --local user.name "$committer_name"
+          git config --local user.email "$committer_email"
+          echo "Committed by: $committer_name <$committer_email>"
+        else
+          echo "Unable to fetch committer details. Please ensure the latest commit contains valid user info."
+          exit 1
+        fi
+              
+        # encoding=$(file -i "$file" | awk -F "=" '{print $NF}')
+
+        # Check if file exists and is readable
+        if [[ ! -f "$file" || ! -r "$file" ]]; then
+          echo "Skipping file: $file (not found or not readable)"
+          continue
+        fi
+
+        separator_c=$(grep -c -- "-----------------------------------------------------------------------------" $file)
+        # echo "Separator count for $file: $separator_c" # debugging
 
         if grep -q "\$LastChangedRevision:" "$file"; then
-          if [ "$(head -n 1 "$file" | grep -c '^-{77,}$')" -gt 0 ] && [ "$(sed -n '11p' "$file" | grep -c '^-{77,}$')" -gt 0 ]; then
-            VERSION=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
-            NEW_VERSION=$((VERSION + 1))
+          if [ $separator_c -eq 2 ]; then
+            echo "Found two instances of 77 dashes, updating header in file: $file"
 
-            echo $VERSION
+            VERSION=$(grep -hnr "\$LastChangedRevision:" "$file" | cut -d ' ' -f5)
+            NEW_VERSION=$((VERSION + 1))
 
             HEADER="-----------------------------------------------------------------------------
       -- Version
@@ -78,57 +82,37 @@ build-job:       # This job runs in the build stage, which runs first.
       --   \$LastChangedDate: $(date +"%Y-%m-%d %H:%M:%S %z (%a, %d %b %Y)") \$;
       --
       -- Author
-      --   \$LastChangedBy: $author \$;
+      --   \$LastChangedBy: $committer_name \$;
       --
-      -----------------------------------------------------------------------------"          
-            
+      -----------------------------------------------------------------------------"
+
             sed -i '/^-\{77,\}/,/^-\{77,\}/d' "$file"
             echo -e "$HEADER\n$(cat "$file")" > temp.sql && mv temp.sql "$file"
-            git add $file
-            echo "file added" $file
-            git commit -m "Version: $NEW_VERSION " ./
-            echo "file commited" $file
+
+            # export LANG=lv_LV.UTF-8
+            # export LC_ALL=lv_LV.UTF-8
+
+            # if [[ "$encoding" != "utf-8" ]]; then
+            #   echo "Converting $file to UTF-8..."
+            #   iconv -f "$encoding" -t UTF-8 "$file" -o temp.sql && mv temp.sql "$file" || echo "Conversion failed for $file"
+            # fi
+
+            file -i $file
+
+            git add "$file"
+            
+            cat $file # Check the whole file for any errors
+
+            git commit -m "Version: $NEW_VERSION"
+            echo "Header updated and file committed: $file"
           else
-            echo "  Skipping $file (missing separators)"
-            # echo $HEADER  # Header check
-          fi 
+            echo "Skipping file: $file (missing two instances of 77 dashes)"
+          fi
         else
-          echo "skipping $file (missing version)"  
+          echo "Skipping file: $file (missing version)"
         fi
 
-          
-          # check_encoding "$file"
-      
-          # x=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
-          # value_count=$(echo "$x" | wc -w)
-
-          # if [ $value_count -ge 2 ]; then
-          #   sed '12,22d' $file
-          #   x=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
-          # fi
-          
-        #   echo $x
-
-        #   version=$(($x+1))
-        # updateVersionReplaceStr="\\\$LastChangedRevision: ${version} \\$"
-        #   echo $updateVersionReplaceStr
-        #   echo "11 step"
-        #   sed -ri "s/$updateDateFindStr/$updateDateReplaceStr/gi; s/$updateAuthorFindStr/$updateAuthorReplaceStr/gi; s/$updateVersionFindStr/$updateVersionReplaceStr/gi;" $file
-
       done
-
-      # for file in $ofiles 
-      # do
-      #     echo "12.1 step"
-      #     x=$(grep -hnr '$LastChangedRevision:' $file | cut -d ' ' -f5)
-      #     echo $x
-      #     version=$(($x+1))
-      #     echo $version
-      #   updateVersionReplaceStr="\\$LastChangedRevision: ${version} \\$"
-      #     echo "12 step"
-      #     sed -ri "s/$updateDateFindStr/$updateDateReplaceStr/gi; s/$updateAuthorFindStr/$updateAuthorReplaceStr/gi; s/$updateVersionFindStr/$updateVersionReplaceStr/gi;" $file
-      #     git add $file
-      # done
 
       IFS=" "
       # git add *
